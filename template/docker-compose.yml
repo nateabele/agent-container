@@ -1,0 +1,25 @@
+services:
+  agent:
+    extends:
+      file: ${AGENT_CONTAINER_PATH}/docker-compose.base.yml
+      service: agent-base
+    
+    # Project-specific volumes
+    volumes:
+      - .:/workspace/${PROJECT_NAME}:rw
+      - ${PROJECT_LOG_DIR}:/workspace/logs:rw
+      # Add additional project volumes here as needed
+      # - ../shared-lib:/workspace/shared-lib:rw
+    
+    # Project-specific ports (optional - defaults from base)
+    ports:
+      - "${PROJECT_PORT_3000:-3000}:3000"
+      - "${PROJECT_PORT_3001:-3001}:3001"
+      # Add additional ports as needed
+      # - "8080:8080"
+    
+    # Project-specific environment variables
+    environment:
+      - PROJECT_NAME=${PROJECT_NAME}
+      # Add project-specific env vars here
+      # - DATABASE_URL=${DATABASE_URL}

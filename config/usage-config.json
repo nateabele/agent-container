@@ -1,0 +1,27 @@
+{
+  "claude-code": {
+    "dailyLimit": 1000000,
+    "weeklyLimit": 5000000,
+    "switchThreshold": 0.75
+  },
+  "codex": {
+    "dailyLimit": 1000000,
+    "weeklyLimit": 5000000,
+    "switchThreshold": 0.75
+  },
+  "cursor": {
+    "dailyLimit": 1000000,
+    "weeklyLimit": 5000000,
+    "switchThreshold": 0.75
+  },
+  "providers": {
+    "primary": "claude-code",
+    "fallback": "codex",
+    "secondary-fallback": "cursor"
+  },
+  "apiKeys": {
+    "openai": "your-openai-api-key-here",
+    "anthropic": "your-anthropic-api-key-here",
+    "cursor": "your-cursor-api-key-here"
+  }
+}

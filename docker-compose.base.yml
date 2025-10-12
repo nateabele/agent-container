@@ -1,0 +1,55 @@
+services:
+  agent-base:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Run as your host user so bind-mounted files are owned/edited cleanly.
+    user: "${AGENT_UID}:${AGENT_GID}"
+
+    # Mount fish config from host (read-only)
+    volumes:
+      - "${HOME}/.config/fish:/home/dev/.config/fish:ro"
+      # Share SSH config/keys for git push
+      - "${HOME}/.ssh:/home/dev/.ssh:ro"
+
+    # Expose common dev ports; projects can override these
+    ports:
+      - "${AGENT_PORT_3000:-3000}:3000"   # Vite/Next dev server
+      - "${AGENT_PORT_3001:-3001}:3001"
+      - "${AGENT_PORT_5173:-5173}:5173"   # Vite default
+      - "${AGENT_PORT_9222:-9222}:9222"   # Chrome DevTools Protocol
+
+    environment:
+      # Make node builds nicer in containers
+      - NODE_ENV=development
+      - PNPM_HOME=/usr/local/share/pnpm
+      - PATH=/usr/local/share/pnpm:$PATH
+      - NODE_PATH=/usr/local/lib/node_modules
+      # Prevent some noisy behaviors in CI-like environments
+      - CI=false
+      # Chrome/Playwright config
+      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+      - PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
+      # Agent container path for scripts
+      - AGENT_CONTAINER_PATH=${AGENT_CONTAINER_PATH:-/workspace/agent-container}
+
+    # Enable Internet access (default bridge network has outbound access).
+    # No special config required—just don't block it.
+    network_mode: bridge
+
+    # Note: sysctls don't work on macOS/Docker Desktop
+    # If on Linux, you can uncomment:
+    # sysctls:
+    #   fs.inotify.max_user_watches: "524288"
+
+    # Basic hardening without breaking dev UX
+    security_opt:
+      - no-new-privileges:true
+
+    # Let the container handle signals properly (pairs with tini in Dockerfile)
+    init: true
+
+    # Keep the container running & attachable
+    tty: true
+    stdin_open: true

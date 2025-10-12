@@ -1,0 +1,26 @@
+{
+  "name": "agent-container",
+  "version": "1.0.0",
+  "description": "A Docker container environment for AI agents with headless browser automation capabilities",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/test-browser.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "@openai/codex": "^1.0.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "ai",
+    "agent",
+    "docker",
+    "browser",
+    "automation",
+    "claude",
+    "codex"
+  ],
+  "author": "",
+  "license": "MIT"
+}

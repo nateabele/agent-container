@@ -1,0 +1,32 @@
+{
+  "claude-code": {
+    "daily": {
+      "tokens": 0,
+      "resetDate": "2025-10-12"
+    },
+    "weekly": {
+      "tokens": 0,
+      "resetDate": "2025-10-12"
+    }
+  },
+  "codex": {
+    "daily": {
+      "tokens": 1869,
+      "resetDate": "2025-10-12"
+    },
+    "weekly": {
+      "tokens": 1869,
+      "resetDate": "2025-10-12"
+    }
+  },
+  "cursor": {
+    "daily": {
+      "tokens": 0,
+      "resetDate": "2025-10-12"
+    },
+    "weekly": {
+      "tokens": 0,
+      "resetDate": "2025-10-12"
+    }
+  }
+}
