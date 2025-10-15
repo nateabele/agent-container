@@ -57,6 +57,29 @@ ENV HOME=/home/dev
 WORKDIR /workspace
 RUN chmod 777 /workspace
 
+# Create a temporary build directory for TypeScript compilation
+WORKDIR /tmp/build
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy TypeScript source files and build configuration
+COPY tsconfig.json ./
+COPY src ./src
+
+# Build TypeScript sources
+RUN npm run build
+
+# Copy only the built dist directory to the final location in a system path
+RUN mkdir -p /usr/local/lib/agent-container && \
+    cp -r dist /usr/local/lib/agent-container/ && \
+    cp -r node_modules /usr/local/lib/agent-container/
+
+# Clean up build directory
+WORKDIR /workspace
+RUN rm -rf /tmp/build
+
 # Copy the Claude Code loop script
 COPY run-loop.sh /usr/local/bin/run-loop
 RUN chmod +x /usr/local/bin/run-loop

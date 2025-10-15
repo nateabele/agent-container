@@ -3,22 +3,13 @@
 
 set -e
 
+# Hard-coded path to agent-container runtime files in the container
+AGENT_RUNTIME_PATH="/usr/local/lib/agent-container"
+
 # Load environment variables from .env file if it exists
 if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
 fi
-
-# Set agent container path if not already set
-if [ -z "$AGENT_CONTAINER_PATH" ]; then
-    # Try to detect from current working directory
-    if [ -f "scripts/ai-provider.js" ]; then
-        AGENT_CONTAINER_PATH="$(pwd)"
-    else
-        # Default fallback
-        AGENT_CONTAINER_PATH="/workspace/agent-container"
-    fi
-fi
-export AGENT_CONTAINER_PATH
 
 # Check if CLAUDE_CODE_OAUTH_TOKEN is set
 if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
@@ -68,44 +59,31 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-if ! node -e "require('$AGENT_CONTAINER_PATH/scripts/ai-provider.js')" &> /dev/null; then
-    echo "Error: AI provider module not found at $AGENT_CONTAINER_PATH/scripts/ai-provider.js"
+if [ ! -f "$AGENT_RUNTIME_PATH/dist/src/ai-provider.js" ]; then
+    echo "Error: AI provider module not found at $AGENT_RUNTIME_PATH/dist/src/ai-provider.js"
     exit 1
 fi
 
-if ! node "$AGENT_CONTAINER_PATH/scripts/ai-loop-executor.js" --validate-only &> /dev/null; then
-    echo "Error: AI loop executor module not found at $AGENT_CONTAINER_PATH/scripts/ai-loop-executor.js"
+if [ ! -f "$AGENT_RUNTIME_PATH/dist/src/index.js" ]; then
+    echo "Error: AI loop executor module not found at $AGENT_RUNTIME_PATH/dist/src/index.js"
     exit 1
 fi
 
-# Validate authentication for both providers
+# Validate authentication for both providers with timeout
 echo "Checking authentication for both Claude and Codex..."
-if ! node "$AGENT_CONTAINER_PATH/scripts/ai-provider.js" validate-auth > /dev/null 2>&1; then
-    echo "Authentication validation failed. Attempting to fix Claude authentication..."
-    
-    # Try to fix Claude authentication
-    if ! echo "test" | claude -p --dangerously-skip-permissions > /dev/null 2>&1; then
-        echo "Not authenticated. Setting up long-lived auth token..."
-        claude setup-token
+if ! timeout 5 node "$AGENT_RUNTIME_PATH/dist/src/ai-provider.js" validate-auth > /dev/null 2>&1; then
+    AUTH_EXIT_CODE=$?
 
-        # Verify authentication worked
-        if ! echo "test" | claude -p --dangerously-skip-permissions > /dev/null 2>&1; then
-            echo "Error: Claude authentication failed"
-            exit 1
-        fi
-        echo "Claude authentication successful!"
+    if [ $AUTH_EXIT_CODE -eq 124 ]; then
+        echo "⚠️  Authentication check timed out after 5 seconds"
+        echo "⚠️  Continuing without validation - provider may be unavailable"
+    else
+        echo "⚠️  Authentication validation failed"
+        echo "⚠️  Continuing anyway - will attempt to use available providers"
     fi
-    
-    # Re-validate both providers
-    echo "Re-validating authentication for both providers..."
-    if ! node "$AGENT_CONTAINER_PATH/scripts/ai-provider.js" validate-auth > /dev/null 2>&1; then
-        echo "Error: Authentication validation still failing"
-        echo "Please check your credentials for both Claude and Codex"
-        exit 1
-    fi
+else
+    echo "✅ Authentication validation passed for both providers"
 fi
-
-echo "✅ Authentication validation passed for both providers"
 
 echo "Starting AI agent loop with usage monitoring..."
 echo "Reading prompts from: $(realpath "$PROMPT_FILE")"
@@ -121,7 +99,9 @@ echo ""
 
 # Show initial usage status
 echo "=== Initial Usage Status ===" | tee -a "$LOG_FILE"
-node "$AGENT_CONTAINER_PATH/scripts/ai-provider.js" status | tee -a "$LOG_FILE"
+if ! timeout 5 node "$AGENT_RUNTIME_PATH/dist/src/ai-provider.js" status 2>&1 | tee -a "$LOG_FILE"; then
+    echo "⚠️  Status check timed out or failed" | tee -a "$LOG_FILE"
+fi
 echo "" | tee -a "$LOG_FILE"
 
 # Configuration for exit conditions
@@ -189,7 +169,7 @@ while [ $ITERATION -le $MAX_ITERATIONS ]; do
     echo "Executing with AI provider..." | tee -a "$LOG_FILE"
     
     # Capture the full output for analysis
-    FULL_OUTPUT=$(cat "$PROMPT_FILE" | node "$AGENT_CONTAINER_PATH/scripts/ai-loop-executor.js" 2>&1)
+    FULL_OUTPUT=$(cat "$PROMPT_FILE" | node "$AGENT_RUNTIME_PATH/dist/src/index.js" 2>&1)
     echo "$FULL_OUTPUT" | tee -a "$LOG_FILE"
 
     # Analyze the response for exit conditions
@@ -239,9 +219,11 @@ while [ $ITERATION -le $MAX_ITERATIONS ]; do
 
     echo "" | tee -a "$LOG_FILE"
     echo "=== Iteration $ITERATION complete, checking usage status... ===" | tee -a "$LOG_FILE"
-    
+
     # Show usage status after each iteration
-    node "$AGENT_CONTAINER_PATH/scripts/ai-provider.js" status | tee -a "$LOG_FILE"
+    if ! timeout 5 node "$AGENT_RUNTIME_PATH/dist/src/ai-provider.js" status 2>&1 | tee -a "$LOG_FILE"; then
+        echo "⚠️  Status check timed out or failed" | tee -a "$LOG_FILE"
+    fi
     
     echo "" | tee -a "$LOG_FILE"
     echo "=== Iteration $ITERATION complete, restarting... ===" | tee -a "$LOG_FILE"
