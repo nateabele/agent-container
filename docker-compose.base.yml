@@ -13,13 +13,6 @@ services:
       # Share SSH config/keys for git push
       - "${HOME}/.ssh:/home/dev/.ssh:ro"
 
-    # Expose common dev ports; projects can override these
-    ports:
-      - "${AGENT_PORT_3000:-3000}:3000"   # Vite/Next dev server
-      - "${AGENT_PORT_3001:-3001}:3001"
-      - "${AGENT_PORT_5173:-5173}:5173"   # Vite default
-      - "${AGENT_PORT_9222:-9222}:9222"   # Chrome DevTools Protocol
-
     environment:
       # Make node builds nicer in containers
       - NODE_ENV=development

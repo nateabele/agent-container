@@ -7,13 +7,13 @@ This project uses the centralized agent container configuration.
 1. **Build and run the container:**
    ```bash
    docker compose build
-   docker compose run --rm agent
+   docker compose run --rm agent # alias (docker-agent)
    ```
 
 2. **Run specific commands:**
    ```bash
    # Interactive shell
-   docker compose run --rm agent
+   docker compose run --rm agent # alias (docker-agent)
    
    # Run a specific script
    docker compose run --rm agent node script.js

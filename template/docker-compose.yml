@@ -11,7 +11,7 @@ services:
       # Add additional project volumes here as needed
       # - ../shared-lib:/workspace/shared-lib:rw
     
-    # Project-specific ports (optional - defaults from base)
+    # Project-specific ports (define only what you need)
     ports:
       - "${PROJECT_PORT_3000:-3000}:3000"
       - "${PROJECT_PORT_3001:-3001}:3001"
