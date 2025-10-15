@@ -4,17 +4,30 @@
  * Test script to validate browser functionality
  */
 
-const { chromium } = require('playwright');
+import { chromium, Browser, Page } from 'playwright';
 
-async function testBrowser() {
+interface BrowserTestResult {
+  readonly url: string;
+  readonly userAgent: string;
+  readonly innerHeight: number;
+  readonly innerWidth: number;
+}
+
+interface BodyStyle {
+  readonly backgroundColor: string;
+  readonly fontFamily: string;
+  readonly margin: string;
+}
+
+async function testBrowser(): Promise<void> {
   console.log('🧪 Testing headless Chromium setup...\n');
 
   try {
     // Test 1: Launch browser
     console.log('1. Launching browser...');
-    const browser = await chromium.launch({
+    const browser: Browser = await chromium.launch({
       headless: true,
-      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium',
+      executablePath: process.env['PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'] || '/usr/bin/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -25,18 +38,18 @@ async function testBrowser() {
 
     // Test 2: Create page and navigate
     console.log('2. Creating page and navigating to example.com...');
-    const page = await browser.newPage();
+    const page: Page = await browser.newPage();
     await page.goto('https://example.com');
     console.log('✅ Navigation successful\n');
 
     // Test 3: Get page title
     console.log('3. Getting page title...');
-    const title = await page.title();
+    const title: string = await page.title();
     console.log(`✅ Page title: "${title}"\n`);
 
     // Test 4: Execute JavaScript in page
     console.log('4. Executing JavaScript in page context...');
-    const result = await page.evaluate(() => {
+    const result: BrowserTestResult = await page.evaluate((): BrowserTestResult => {
       return {
         url: window.location.href,
         userAgent: navigator.userAgent,
@@ -50,15 +63,15 @@ async function testBrowser() {
 
     // Test 5: Get DOM content
     console.log('5. Getting DOM content...');
-    const h1Text = await page.locator('h1').textContent();
+    const h1Text: string | null = await page.locator('h1').textContent();
     console.log(`✅ Found H1 text: "${h1Text}"\n`);
 
     // Test 6: Console log capture
     console.log('6. Testing console log capture...');
-    const consoleLogs = [];
+    const consoleLogs: string[] = [];
     page.on('console', msg => consoleLogs.push(msg.text()));
 
-    await page.evaluate(() => {
+    await page.evaluate((): void => {
       console.log('Test message from browser');
       console.warn('Test warning from browser');
       console.error('Test error from browser');
@@ -70,7 +83,7 @@ async function testBrowser() {
 
     // Test 7: Get computed styles
     console.log('7. Getting computed styles...');
-    const bodyStyle = await page.evaluate(() => {
+    const bodyStyle: BodyStyle = await page.evaluate((): BodyStyle => {
       const body = document.body;
       const style = window.getComputedStyle(body);
       return {
@@ -94,8 +107,8 @@ async function testBrowser() {
     console.log('  - Chrome DevTools Protocol at http://localhost:9222');
 
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
-    console.error(error.stack);
+    console.error('❌ Test failed:', (error as Error).message);
+    console.error((error as Error).stack);
     process.exit(1);
   }
 }

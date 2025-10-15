@@ -18,8 +18,10 @@ A Docker container environment for AI agents with headless browser automation ca
 
 ### 🛠️ Development Tools
 - Node.js LTS with npm/pnpm
+- TypeScript 5.0+ with strict type checking
 - Claude CLI
 - OpenAI Codex integration
+- Google Gemini CLI integration
 - AI usage monitoring and auto-switching
 - Git, vim, and common utilities
 
@@ -124,7 +126,7 @@ const AIProvider = require('./scripts/ai-provider');
 
 const provider = new AIProvider();
 
-// Execute with auto-switching between Claude Code and Codex
+// Execute with auto-switching between all providers
 const result = await provider.execute("What is the capital of France?", 100);
 
 console.log(`Provider: ${result.provider}`);
@@ -133,6 +135,15 @@ console.log(`Response: ${result.result}`);
 
 // Check usage status
 provider.printStatus();
+
+// Get health status
+const health = await provider.getHealthStatus();
+
+// Validate authentication
+const auth = await provider.validateAuthentication();
+
+// List all providers
+const providers = provider.getAllProviderInfo();
 ```
 
 ## Configuration
@@ -161,14 +172,59 @@ Configure in [config/usage-config.json](config/usage-config.json):
     "weeklyLimit": 5000000,
     "switchThreshold": 0.75
   },
+  "gemini": {
+    "dailyLimit": 1000000,
+    "weeklyLimit": 5000000,
+    "switchThreshold": 0.75
+  },
+  "cursor": {
+    "dailyLimit": 1000000,
+    "weeklyLimit": 5000000,
+    "switchThreshold": 0.75
+  },
   "providers": {
     "primary": "claude-code",
-    "fallback": "codex"
+    "fallback": "codex",
+    "secondary-fallback": "gemini",
+    "tertiary-fallback": "cursor"
   }
 }
 ```
 
 The system automatically switches providers when usage exceeds 75% of daily or weekly limits.
+
+### Provider Interface Architecture
+
+The AI provider system uses a modular architecture with the following components:
+
+- **BaseAIProvider**: Abstract base class defining the provider interface
+- **ProviderOrchestrator**: Manages multiple providers and handles routing/fallbacks
+- **ProviderFactory**: Creates and configures provider instances
+- **Concrete Providers**: Implementations for Claude, Codex, Gemini, and Cursor
+
+Each provider implements:
+- **Authentication**: Login and validation methods
+- **Execution**: Request processing and response handling
+- **Usage Tracking**: Token counting and limit monitoring
+- **Health Monitoring**: Availability and status reporting
+
+### Provider Configuration
+
+Providers are configured using an array-based system where **array order = priority order**:
+
+```javascript
+const factory = new ProviderFactory();
+const providers = [
+  factory.createProvider('gemini', { dailyLimit: 2000000, switchThreshold: 0.8 }),
+  factory.createProvider('claude-code', { dailyLimit: 1500000, switchThreshold: 0.7 }),
+  factory.createProvider('codex', { dailyLimit: 1000000, switchThreshold: 0.75 }),
+  factory.createProvider('cursor', { dailyLimit: 500000, switchThreshold: 0.9 })
+];
+
+const orchestrator = new ProviderOrchestrator(providers);
+```
+
+The system will try providers in array order, falling back to the next available provider if the current one fails or exceeds usage limits.
 
 ### Ports
 
@@ -198,16 +254,62 @@ The system automatically switches providers when usage exceeds 75% of daily or w
 
 ### Browser Tools
 - [scripts/browser-utils.js](scripts/browser-utils.js) - CLI utilities for browser automation
-- [tests/test-browser.js](tests/test-browser.js) - Comprehensive test suite
+- [tests/test-browser.ts](tests/test-browser.ts) - Comprehensive test suite
 - [scripts/demo-screenshot.js](scripts/demo-screenshot.js) - Screenshot example
 - [docs/BROWSER.md](docs/BROWSER.md) - Browser documentation
 
+## TypeScript Development
+
+This project is built with TypeScript for type safety and better developer experience.
+
+### Development Commands
+
+```bash
+# Type checking
+npm run type-check
+
+# Build TypeScript
+npm run build
+
+# Watch mode for development
+npm run dev
+
+# Clean build artifacts
+npm run clean
+
+# Run tests
+npm test
+```
+
+### Project Structure
+
+```
+src/
+├── types.ts                    # Core type definitions
+├── index.ts                    # Main entry point
+├── ai-provider.ts              # Main AI provider wrapper
+└── providers/
+    ├── base-provider.ts         # Abstract base provider
+    ├── claude-provider.ts       # Claude Code implementation
+    ├── codex-provider.ts        # OpenAI Codex implementation
+    ├── gemini-provider.ts       # Google Gemini implementation
+    ├── cursor-provider.ts       # Cursor AI implementation
+    ├── provider-factory.ts     # Provider factory
+    └── provider-orchestrator.ts # Provider orchestration
+
+tests/
+├── test-browser.ts              # Browser automation tests
+├── test-provider-interface.ts   # Provider interface tests
+└── example-custom-providers.ts  # Custom provider examples
+
+dist/                           # Compiled JavaScript output
+```
+
 ### AI Provider Tools
-- [scripts/ai-provider.js](scripts/ai-provider.js) - AI provider wrapper with auto-switching
-- [scripts/ai-loop-executor.js](scripts/ai-loop-executor.js) - Executor for shell script integration
-- [scripts/usage-monitor.js](scripts/usage-monitor.js) - Usage monitoring system
-- [tests/test-ai-integration.js](tests/test-ai-integration.js) - Integration test suite
-- [scripts/example-usage.js](scripts/example-usage.js) - Usage examples
+- [src/ai-provider.ts](src/ai-provider.ts) - Main AI provider wrapper with auto-switching
+- [src/providers/](src/providers/) - Provider implementations and orchestration
+- [tests/test-provider-interface.ts](tests/test-provider-interface.ts) - Provider interface tests
+- [tests/example-custom-providers.ts](tests/example-custom-providers.ts) - Custom provider examples
 - [config/usage-config.json](config/usage-config.json) - Configuration file
 
 ### Multi-Project Documentation

@@ -30,8 +30,8 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
  && rm -rf /var/lib/apt/lists/*
 
-# Install Claude CLI, Playwright, and OpenAI Codex globally
-RUN npm install -g @anthropic-ai/claude-code playwright @openai/codex
+# Install Claude CLI, Playwright, OpenAI Codex, and Google Gemini CLI globally
+RUN npm install -g @anthropic-ai/claude-code playwright @openai/codex @google/gemini-cli
 
 # Install Cursor CLI
 RUN curl https://cursor.com/install -fsS | bash

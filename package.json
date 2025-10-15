@@ -2,16 +2,22 @@
   "name": "agent-container",
   "version": "1.0.0",
   "description": "A Docker container environment for AI agents with headless browser automation capabilities",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "node tests/test-browser.js",
-    "start": "node index.js"
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "npm run build && node dist/tests/test-browser.js",
+    "start": "npm run build && node dist/index.js",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
-    "playwright": "^1.40.0",
-    "@openai/codex": "^1.0.0"
+    "playwright": "^1.40.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
   "keywords": [
     "ai",
     "agent",
@@ -19,7 +25,10 @@
     "browser",
     "automation",
     "claude",
-    "codex"
+    "codex",
+    "gemini",
+    "cursor",
+    "typescript"
   ],
   "author": "",
   "license": "MIT"
