@@ -4,9 +4,10 @@
  * Google Gemini Provider Implementation
  */
 
-import { spawn, exec } from 'child_process';
+import { exec } from 'child_process';
 import { BaseAIProvider } from './base-provider.js';
 import { ProviderConfig, ExecutionOptions, AuthenticationCredentials, ConfigurationOptions } from '../types.js';
+import { spawnProcess } from './process-utils.js';
 
 interface TestModeOptions extends ExecutionOptions {
   readonly testMode?: boolean;
@@ -59,32 +60,17 @@ export class GeminiProvider extends BaseAIProvider {
       }
 
       // Try OAuth login flow
-      return new Promise((resolve) => {
-        const gemini = spawn('gemini', ['--login'], {
-          stdio: ['pipe', 'pipe', 'pipe']
+      try {
+        await spawnProcess({
+          command: 'gemini',
+          args: ['--login']
         });
-
-        let output = '';
-        let errorOutput = '';
-
-        gemini.stdout?.on('data', (data) => {
-          output += data.toString();
-        });
-
-        gemini.stderr?.on('data', (data) => {
-          errorOutput += data.toString();
-        });
-
-        gemini.on('close', (code) => {
-          if (code === 0) {
-            this.isAuthenticated = true;
-            resolve(true);
-          } else {
-            console.error('Gemini authentication failed:', errorOutput);
-            resolve(false);
-          }
-        });
-      });
+        this.isAuthenticated = true;
+        return true;
+      } catch (error) {
+        console.error('Gemini authentication failed:', (error as Error).message);
+        return false;
+      }
     } catch (error) {
       console.error('Gemini login error:', (error as Error).message);
       return false;
@@ -115,63 +101,11 @@ export class GeminiProvider extends BaseAIProvider {
    * Execute a request with Gemini
    */
   public async execute(input: string, options: TestModeOptions = {}): Promise<string> {
-    if (options.testMode) {
-      // For authentication testing, use a minimal request
-      return new Promise((resolve, reject) => {
-        const gemini = spawn('gemini', [
-          '-p', 'Hello',
-          '--output-format', 'text'
-        ], {
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
+    const prompt = options.testMode ? 'Hello' : input;
 
-        let output = '';
-        let errorOutput = '';
-
-        gemini.stdout?.on('data', (data) => {
-          output += data.toString();
-        });
-
-        gemini.stderr?.on('data', (data) => {
-          errorOutput += data.toString();
-        });
-
-        gemini.on('close', (code) => {
-          if (code === 0) {
-            resolve(output);
-          } else {
-            reject(new Error(`Gemini failed with code ${code}: ${errorOutput}`));
-          }
-        });
-      });
-    }
-
-    return new Promise((resolve, reject) => {
-      const gemini = spawn('gemini', [
-        '-p', input,
-        '--output-format', 'text'
-      ], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
-      let output = '';
-      let errorOutput = '';
-
-      gemini.stdout?.on('data', (data) => {
-        output += data.toString();
-      });
-
-      gemini.stderr?.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      gemini.on('close', (code) => {
-        if (code === 0) {
-          resolve(output);
-        } else {
-          reject(new Error(`Gemini failed with code ${code}: ${errorOutput}`));
-        }
-      });
+    return spawnProcess({
+      command: 'gemini',
+      args: ['-p', prompt, '--output-format', 'text']
     });
   }
 

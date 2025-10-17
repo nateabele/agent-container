@@ -10,15 +10,18 @@ import { ProviderOrchestrator } from './providers/provider-orchestrator.js';
 import { ProviderFactory } from './providers/provider-factory.js';
 import { BaseAIProvider } from './providers/base-provider.js';
 import { ExecutionResult, AuthenticationCredentials, HealthStatus, ProviderInfo, ProviderName, FullConfig } from './types.js';
+import { ClaudeProvider } from './providers/claude-provider.js';
 
 export class AIProvider {
 
   private readonly factory: ProviderFactory;
   private readonly configuredProviders: readonly BaseAIProvider[];
   private readonly orchestrator: ProviderOrchestrator;
+  private readonly configPath: string | undefined;
 
-  constructor(providers: readonly BaseAIProvider[] = []) {
+  constructor(providers: readonly BaseAIProvider[] = [], configPath?: string) {
     this.factory = new ProviderFactory();
+    this.configPath = configPath;
     this.configuredProviders = providers.length > 0 ? providers : this.createDefaultProviders();
     this.orchestrator = new ProviderOrchestrator(this.configuredProviders);
   }
@@ -27,17 +30,17 @@ export class AIProvider {
    * Create default provider instances with configuration
    */
   private createDefaultProviders(): readonly BaseAIProvider[] {
-    const config = this.loadConfig();
-    const providers: BaseAIProvider[] = [];
-    
-    // Create all providers with their configurations
-    for (const providerName of this.factory.getAvailableProviders()) {
-      const providerConfig = config[providerName];
-      if (providerConfig && 'dailyLimit' in providerConfig) {
-        const provider = this.factory.createProvider(providerName, providerConfig as any);
-        providers.push(provider);
-      }
-    }
+    // const config = this.loadConfig();
+    const providers: BaseAIProvider[] = [new ClaudeProvider({ dailyLimit: 1000000, weeklyLimit: 5000000, switchThreshold: 0.75 })];
+
+    // // Create all providers with their configurations
+    // for (const providerName of this.factory.getAvailableProviders()) {
+    //   const providerConfig = config[providerName];
+    //   if (providerConfig && 'dailyLimit' in providerConfig) {
+    //     const provider = this.factory.createProvider(providerName, providerConfig as any);
+    //     providers.push(provider);
+    //   }
+    // }
     
     return providers;
   }
@@ -45,7 +48,7 @@ export class AIProvider {
   /**
    * Load configuration from file
    */
-  private loadConfig(): FullConfig {
+  public loadConfig(): FullConfig {
     const defaultConfig: FullConfig = {
       'claude-code': {
         dailyLimit: 1000000,
@@ -76,8 +79,11 @@ export class AIProvider {
     };
 
     try {
-      if (fs.existsSync('./config/usage-config.json')) {
-        const config = JSON.parse(fs.readFileSync('./config/usage-config.json', 'utf8')) as any;
+      // Use custom config path if provided, otherwise use default
+      const configPath = this.configPath || './config/usage-config.json';
+
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8')) as any;
         return { ...defaultConfig, ...config } as FullConfig;
       }
     } catch (error) {

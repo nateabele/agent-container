@@ -3,48 +3,98 @@
 
 set -e
 
-# Hard-coded path to agent-container runtime files in the container
-AGENT_RUNTIME_PATH="/usr/local/lib/agent-container"
+# Path to agent-container runtime files - can be overridden via environment variable
+AGENT_RUNTIME_PATH="${AGENT_RUNTIME_PATH:-/usr/local/lib/agent-container}"
 
 # Load environment variables from .env file if it exists
 if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
 fi
 
-# Check if CLAUDE_CODE_OAUTH_TOKEN is set
-if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-    echo "Error: CLAUDE_CODE_OAUTH_TOKEN environment variable is not set"
-    echo "Please set it in your .env file or export it directly"
-    exit 1
-fi
+# Note: CLAUDE_CODE_OAUTH_TOKEN is optional - if not set, will use native Claude CLI auth
 
-# Get prompt file path from first parameter, default to ./PROMPT.md
-PROMPT_FILE="${1:-./PROMPT.md}"
+# Parse command line arguments
+PROMPT_FILE=""
+PROVIDER_PATH=""
+LOG_PATH=""
 
-# Show usage if help requested
-if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo "Usage: $0 [path/to/PROMPT.md]"
-    echo ""
-    echo "Environment variables for exit conditions:"
-    echo "  MAX_ITERATIONS          - Maximum iterations before exit (default: 100)"
-    echo "  MAX_CONSECUTIVE_IDENTICAL - Max consecutive identical responses (default: 10)"
-    echo "  MAX_CONSECUTIVE_BLOCKED    - Max consecutive blocked responses (default: 5)"
-    echo ""
-    echo "Examples:"
-    echo "  $0                                    # Use ./PROMPT.md"
-    echo "  $0 ./my-prompt.md                    # Use custom prompt file"
-    echo "  MAX_ITERATIONS=50 $0                 # Limit to 50 iterations"
-    echo "  MAX_CONSECUTIVE_BLOCKED=3 $0         # Exit after 3 blocked responses"
-    exit 0
-fi
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            echo "Usage: $0 [OPTIONS] [path/to/PROMPT.md]"
+            echo ""
+            echo "Options:"
+            echo "  --provider-path PATH    Path to custom provider configuration"
+            echo "  --log-path PATH         Directory to write log files (default: /workspace/logs or .)"
+            echo "  -h, --help             Show this help message"
+            echo ""
+            echo "Environment variables for exit conditions:"
+            echo "  MAX_ITERATIONS          - Maximum iterations before exit (default: 100)"
+            echo "  MAX_CONSECUTIVE_IDENTICAL - Max consecutive identical responses (default: 10)"
+            echo "  MAX_CONSECUTIVE_BLOCKED    - Max consecutive blocked responses (default: 5)"
+            echo ""
+            echo "Examples:"
+            echo "  $0                                    # Use ./PROMPT.md"
+            echo "  $0 ./my-prompt.md                    # Use custom prompt file"
+            echo "  $0 --provider-path ./custom.json     # Use custom provider config"
+            echo "  $0 --provider-path=./custom.json     # Alternative syntax"
+            echo "  $0 --log-path /workspace/logs        # Write logs to specific directory"
+            echo "  MAX_ITERATIONS=50 $0                 # Limit to 50 iterations"
+            echo "  MAX_CONSECUTIVE_BLOCKED=3 $0         # Exit after 3 blocked responses"
+            exit 0
+            ;;
+        --provider-path=*)
+            PROVIDER_PATH="${1#*=}"
+            shift
+            ;;
+        --provider-path)
+            PROVIDER_PATH="$2"
+            shift 2
+            ;;
+        --log-path=*)
+            LOG_PATH="${1#*=}"
+            shift
+            ;;
+        --log-path)
+            LOG_PATH="$2"
+            shift 2
+            ;;
+        *)
+            if [ -z "$PROMPT_FILE" ]; then
+                PROMPT_FILE="$1"
+            else
+                echo "Error: Unexpected argument '$1'"
+                echo "Run '$0 --help' for usage information"
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
 
-# Create log file with timestamp in project-specific log directory
-if [ -n "$PROJECT_LOG_DIR" ] && [ -d "$PROJECT_LOG_DIR" ]; then
-    LOG_FILE="$PROJECT_LOG_DIR/ai-loop-$(date +%Y%m%d-%H%M%S).log"
+# Set default prompt file if not specified
+PROMPT_FILE="${PROMPT_FILE:-./PROMPT.md}"
+
+# Determine log directory with priority: --log-path flag, /workspace/logs (container), current directory
+if [ -n "$LOG_PATH" ]; then
+    # Use user-specified log path
+    LOG_DIR="$LOG_PATH"
+elif [ -d "/workspace/logs" ]; then
+    # Running in container - use mounted logs directory
+    LOG_DIR="/workspace/logs"
+elif [ -n "$PROJECT_LOG_DIR" ] && [ -d "$PROJECT_LOG_DIR" ]; then
+    # Use PROJECT_LOG_DIR from environment
+    LOG_DIR="$PROJECT_LOG_DIR"
 else
-    # Fallback to current directory if PROJECT_LOG_DIR is not set or doesn't exist
-    LOG_FILE="./ai-loop-$(date +%Y%m%d-%H%M%S).log"
+    # Fallback to current directory
+    LOG_DIR="."
 fi
+
+# Create log directory if it doesn't exist
+mkdir -p "$LOG_DIR"
+
+# Create log file with timestamp
+LOG_FILE="$LOG_DIR/ai-loop-$(date +%Y%m%d-%H%M%S).log"
 
 # Check if prompt file exists
 if [ ! -f "$PROMPT_FILE" ]; then
@@ -64,26 +114,26 @@ if [ ! -f "$AGENT_RUNTIME_PATH/dist/src/ai-provider.js" ]; then
     exit 1
 fi
 
-if [ ! -f "$AGENT_RUNTIME_PATH/dist/src/index.js" ]; then
-    echo "Error: AI loop executor module not found at $AGENT_RUNTIME_PATH/dist/src/index.js"
+if [ ! -f "$AGENT_RUNTIME_PATH/dist/src/cli.js" ]; then
+    echo "Error: AI CLI module not found at $AGENT_RUNTIME_PATH/dist/src/cli.js"
     exit 1
 fi
 
 # Validate authentication for both providers with timeout
-echo "Checking authentication for both Claude and Codex..."
-if ! timeout 5 node "$AGENT_RUNTIME_PATH/dist/src/ai-provider.js" validate-auth > /dev/null 2>&1; then
-    AUTH_EXIT_CODE=$?
+# echo "Checking authentication for both Claude and Codex..."
+# if ! timeout 5 node "$AGENT_RUNTIME_PATH/dist/src/ai-provider.js" validate-auth > /dev/null 2>&1; then
+#     AUTH_EXIT_CODE=$?
 
-    if [ $AUTH_EXIT_CODE -eq 124 ]; then
-        echo "⚠️  Authentication check timed out after 5 seconds"
-        echo "⚠️  Continuing without validation - provider may be unavailable"
-    else
-        echo "⚠️  Authentication validation failed"
-        echo "⚠️  Continuing anyway - will attempt to use available providers"
-    fi
-else
-    echo "✅ Authentication validation passed for both providers"
-fi
+#     if [ $AUTH_EXIT_CODE -eq 124 ]; then
+#         echo "⚠️  Authentication check timed out after 5 seconds"
+#         echo "⚠️  Continuing without validation - provider may be unavailable"
+#     else
+#         echo "⚠️  Authentication validation failed"
+#         echo "⚠️  Continuing anyway - will attempt to use available providers"
+#     fi
+# else
+#     echo "✅ Authentication validation passed for both providers"
+# fi
 
 echo "Starting AI agent loop with usage monitoring..."
 echo "Reading prompts from: $(realpath "$PROMPT_FILE")"
@@ -167,10 +217,25 @@ while [ $ITERATION -le $MAX_ITERATIONS ]; do
 
     # Execute with AI provider (auto-switching between Claude Code and Codex)
     echo "Executing with AI provider..." | tee -a "$LOG_FILE"
-    
-    # Capture the full output for analysis
-    FULL_OUTPUT=$(cat "$PROMPT_FILE" | node "$AGENT_RUNTIME_PATH/dist/src/index.js" 2>&1)
+
+    # Build CLI command with optional provider path
+    CLI_ARGS=()
+    if [ -n "$PROVIDER_PATH" ]; then
+        CLI_ARGS+=("--provider-path" "$PROVIDER_PATH")
+    fi
+
+    # Capture the full output for analysis (disable set -e temporarily to capture errors)
+    set +e
+    FULL_OUTPUT=$(cat "$PROMPT_FILE" | node "$AGENT_RUNTIME_PATH/dist/src/cli.js" "${CLI_ARGS[@]}" 2>&1)
+    EXIT_CODE=$?
+    set -e
+
     echo "$FULL_OUTPUT" | tee -a "$LOG_FILE"
+
+    # If the command failed, show error and continue (don't exit the loop)
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "⚠️  AI provider command failed with exit code $EXIT_CODE" | tee -a "$LOG_FILE"
+    fi
 
     # Analyze the response for exit conditions
     CURRENT_RESPONSE_HASH=$(calculate_response_hash "$FULL_OUTPUT")

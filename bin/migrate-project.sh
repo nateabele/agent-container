@@ -45,6 +45,23 @@ PORT_9222=$(detect_port 9222)
 
 echo "Detected available ports: 3000->$PORT_3000, 3001->$PORT_3001, 5173->$PORT_5173, 9222->$PORT_9222"
 
+# Create project-specific log directory in agent-container
+PROJECT_LOG_DIR="$AGENT_CONTAINER_PATH/logs/$PROJECT_NAME"
+if [ ! -d "$PROJECT_LOG_DIR" ]; then
+    mkdir -p "$PROJECT_LOG_DIR"
+    echo "Created project log directory: $PROJECT_LOG_DIR"
+else
+    echo "Project log directory already exists: $PROJECT_LOG_DIR"
+fi
+
+# Create session directory in project for persistent /home/dev
+if [ ! -d "session" ]; then
+    mkdir -p "session"
+    echo "Created session directory: $PROJECT_DIR/session"
+else
+    echo "Session directory already exists: $PROJECT_DIR/session"
+fi
+
 # Create new .env file
 echo "Creating .env file..."
 cat > .env << EOF
@@ -56,6 +73,9 @@ AGENT_CONTAINER_PATH=$AGENT_CONTAINER_PATH
 
 # Project name (used for workspace directory)
 PROJECT_NAME=$PROJECT_NAME
+
+# Project-specific log directory
+PROJECT_LOG_DIR=$PROJECT_LOG_DIR
 
 # User ID and Group ID
 AGENT_UID=$USER_ID
@@ -79,18 +99,20 @@ services:
     extends:
       file: $AGENT_CONTAINER_PATH/docker-compose.base.yml
       service: agent-base
-    
+
     # Project-specific volumes
     volumes:
       - .:/workspace/$PROJECT_NAME:rw
-    
+      - \${PROJECT_LOG_DIR}:/workspace/logs:rw
+      - ./session:/home/dev:rw
+
     # Project-specific ports (optional - defaults from base)
     ports:
       - "\${PROJECT_PORT_3000:-3000}:3000"
       - "\${PROJECT_PORT_3001:-3001}:3001"
       - "\${PROJECT_PORT_5173:-5173}:5173"
       - "\${PROJECT_PORT_9222:-9222}:9222"
-    
+
     # Project-specific environment variables
     environment:
       - PROJECT_NAME=$PROJECT_NAME
@@ -102,10 +124,15 @@ if [ -f .gitignore ]; then
         echo "" >> .gitignore
         echo "# Agent container environment" >> .gitignore
         echo ".env" >> .gitignore
-        echo "Added .env to .gitignore"
+        echo "session/" >> .gitignore
+        echo "Added .env and session/ to .gitignore"
+    elif ! grep -q "session/" .gitignore; then
+        echo "session/" >> .gitignore
+        echo "Added session/ to .gitignore"
     fi
 else
     echo ".env" > .gitignore
+    echo "session/" >> .gitignore
     echo "Created .gitignore"
 fi
 

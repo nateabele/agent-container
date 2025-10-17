@@ -4,9 +4,10 @@
  * OpenAI Codex Provider Implementation
  */
 
-import { spawn, exec } from 'child_process';
+import { exec } from 'child_process';
 import { BaseAIProvider } from './base-provider.js';
 import { ProviderConfig, ExecutionOptions, AuthenticationCredentials, ConfigurationOptions } from '../types.js';
+import { spawnProcess } from './process-utils.js';
 
 interface TestModeOptions extends ExecutionOptions {
   readonly testMode?: boolean;
@@ -81,65 +82,11 @@ export class CodexProvider extends BaseAIProvider {
    * Execute a request with Codex
    */
   public async execute(input: string, options: TestModeOptions = {}): Promise<string> {
-    if (options.testMode) {
-      // For authentication testing, use a minimal request
-      return new Promise((resolve, reject) => {
-        const codex = spawn('codex', [
-          'exec',
-          '--skip-git-repo-check',
-          'echo "test"'
-        ], {
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
+    const command = options.testMode ? 'echo "test"' : input;
 
-        let output = '';
-        let errorOutput = '';
-
-        codex.stdout?.on('data', (data) => {
-          output += data.toString();
-        });
-
-        codex.stderr?.on('data', (data) => {
-          errorOutput += data.toString();
-        });
-
-        codex.on('close', (code) => {
-          if (code === 0) {
-            resolve(output);
-          } else {
-            reject(new Error(`Codex failed with code ${code}: ${errorOutput}`));
-          }
-        });
-      });
-    }
-
-    return new Promise((resolve, reject) => {
-      const codex = spawn('codex', [
-        'exec',
-        '--skip-git-repo-check',
-        input
-      ], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
-      let output = '';
-      let errorOutput = '';
-
-      codex.stdout?.on('data', (data) => {
-        output += data.toString();
-      });
-
-      codex.stderr?.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      codex.on('close', (code) => {
-        if (code === 0) {
-          resolve(output);
-        } else {
-          reject(new Error(`Codex failed with code ${code}: ${errorOutput}`));
-        }
-      });
+    return spawnProcess({
+      command: 'codex',
+      args: ['exec', '--skip-git-repo-check', command]
     });
   }
 

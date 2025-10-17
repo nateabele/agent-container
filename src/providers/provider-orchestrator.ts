@@ -73,11 +73,12 @@ export class ProviderOrchestrator {
         continue;
       }
 
-      const isAuthenticated = await provider.validateAuthentication();
-      if (!isAuthenticated) {
-        console.warn(`⚠️  Provider ${provider.name} is not authenticated`);
-        continue;
-      }
+      // DISABLED: Authentication check
+      // const isAuthenticated = await provider.validateAuthentication();
+      // if (!isAuthenticated) {
+      //   console.warn(`⚠️  Provider ${provider.name} is not authenticated`);
+      //   continue;
+      // }
 
       // Check if usage threshold is exceeded
       if (provider.isUsageThresholdExceeded()) {
@@ -98,9 +99,10 @@ export class ProviderOrchestrator {
     console.warn('⚠️  No provider meets all criteria, attempting fallback...');
     for (const provider of priorityOrder) {
       const isAvailable = await provider.isAvailable();
-      const isAuthenticated = await provider.validateAuthentication();
-      
-      if (isAvailable && isAuthenticated) {
+      // DISABLED: Authentication check
+      // const isAuthenticated = await provider.validateAuthentication();
+
+      if (isAvailable) { // && isAuthenticated
         console.log(`🔄 Using fallback provider: ${provider.name}`);
         this.currentProvider = provider.name;
         return provider;
@@ -150,10 +152,11 @@ export class ProviderOrchestrator {
         if (!fallbackProvider) continue;
         
         const isAvailable = await fallbackProvider.isAvailable();
-        const isAuthenticated = await fallbackProvider.validateAuthentication();
-        
-        if (!isAvailable || !isAuthenticated) {
-          console.warn(`⚠️  Fallback provider ${fallbackProvider.name} not available or authenticated`);
+        // DISABLED: Authentication check
+        // const isAuthenticated = await fallbackProvider.validateAuthentication();
+
+        if (!isAvailable) { // || !isAuthenticated
+          console.warn(`⚠️  Fallback provider ${fallbackProvider.name} not available`);
           continue;
         }
         

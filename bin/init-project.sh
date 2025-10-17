@@ -90,13 +90,22 @@ fi
 
 print_status "Initializing project '$PROJECT_NAME' in '$PROJECT_PATH'"
 
-# Create project-specific log directory
-PROJECT_LOG_DIR="$SCRIPT_DIR/logs/$PROJECT_NAME"
+# Create project-specific log directory in agent-container
+PROJECT_LOG_DIR="$AGENT_CONTAINER_ROOT/logs/$PROJECT_NAME"
 if [ ! -d "$PROJECT_LOG_DIR" ]; then
     mkdir -p "$PROJECT_LOG_DIR"
     print_success "Created project log directory: $PROJECT_LOG_DIR"
 else
     print_status "Project log directory already exists: $PROJECT_LOG_DIR"
+fi
+
+# Create session directory in project for persistent /home/dev
+SESSION_DIR="$PROJECT_PATH/session"
+if [ ! -d "$SESSION_DIR" ]; then
+    mkdir -p "$SESSION_DIR"
+    print_success "Created session directory: $SESSION_DIR"
+else
+    print_status "Session directory already exists: $SESSION_DIR"
 fi
 
 # Detect user ID and group ID
@@ -188,10 +197,14 @@ if [ -f "$PROJECT_PATH/.gitignore" ]; then
         echo "" >> "$PROJECT_PATH/.gitignore"
         echo "# Agent container environment" >> "$PROJECT_PATH/.gitignore"
         echo ".env" >> "$PROJECT_PATH/.gitignore"
-        print_success "Added .env to .gitignore"
+        echo "session/" >> "$PROJECT_PATH/.gitignore"
+        print_success "Added .env and session/ to .gitignore"
+    elif ! grep -q "session/" "$PROJECT_PATH/.gitignore"; then
+        echo "session/" >> "$PROJECT_PATH/.gitignore"
+        print_success "Added session/ to .gitignore"
     fi
 else
-    print_warning "No .gitignore found - consider adding .env to version control exclusions"
+    print_warning "No .gitignore found - consider adding .env and session/ to version control exclusions"
 fi
 
 print_success "Project initialization complete!"

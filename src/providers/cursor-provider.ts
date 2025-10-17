@@ -4,9 +4,10 @@
  * Cursor AI Provider Implementation
  */
 
-import { spawn, exec } from 'child_process';
+import { exec } from 'child_process';
 import { BaseAIProvider } from './base-provider.js';
 import { ProviderConfig, ExecutionOptions, AuthenticationCredentials, ConfigurationOptions } from '../types.js';
+import { spawnProcess } from './process-utils.js';
 
 interface TestModeOptions extends ExecutionOptions {
   readonly testMode?: boolean;
@@ -51,32 +52,17 @@ export class CursorProvider extends BaseAIProvider {
       }
 
       // Try OAuth login flow
-      return new Promise((resolve) => {
-        const cursor = spawn('cursor-agent', ['--login'], {
-          stdio: ['pipe', 'pipe', 'pipe']
+      try {
+        await spawnProcess({
+          command: 'cursor-agent',
+          args: ['--login']
         });
-
-        let output = '';
-        let errorOutput = '';
-
-        cursor.stdout?.on('data', (data) => {
-          output += data.toString();
-        });
-
-        cursor.stderr?.on('data', (data) => {
-          errorOutput += data.toString();
-        });
-
-        cursor.on('close', (code) => {
-          if (code === 0) {
-            this.isAuthenticated = true;
-            resolve(true);
-          } else {
-            console.error('Cursor authentication failed:', errorOutput);
-            resolve(false);
-          }
-        });
-      });
+        this.isAuthenticated = true;
+        return true;
+      } catch (error) {
+        console.error('Cursor authentication failed:', (error as Error).message);
+        return false;
+      }
     } catch (error) {
       console.error('Cursor login error:', (error as Error).message);
       return false;
@@ -107,61 +93,11 @@ export class CursorProvider extends BaseAIProvider {
    * Execute a request with Cursor
    */
   public async execute(input: string, options: TestModeOptions = {}): Promise<string> {
-    if (options.testMode) {
-      // For authentication testing, use a minimal request
-      return new Promise((resolve, reject) => {
-        const cursor = spawn('cursor-agent', [
-          '--prompt', 'Hello'
-        ], {
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
+    const prompt = options.testMode ? 'Hello' : input;
 
-        let output = '';
-        let errorOutput = '';
-
-        cursor.stdout?.on('data', (data) => {
-          output += data.toString();
-        });
-
-        cursor.stderr?.on('data', (data) => {
-          errorOutput += data.toString();
-        });
-
-        cursor.on('close', (code) => {
-          if (code === 0) {
-            resolve(output);
-          } else {
-            reject(new Error(`Cursor failed with code ${code}: ${errorOutput}`));
-          }
-        });
-      });
-    }
-
-    return new Promise((resolve, reject) => {
-      const cursor = spawn('cursor-agent', [
-        '--prompt', input
-      ], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
-      let output = '';
-      let errorOutput = '';
-
-      cursor.stdout?.on('data', (data) => {
-        output += data.toString();
-      });
-
-      cursor.stderr?.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      cursor.on('close', (code) => {
-        if (code === 0) {
-          resolve(output);
-        } else {
-          reject(new Error(`Cursor failed with code ${code}: ${errorOutput}`));
-        }
-      });
+    return spawnProcess({
+      command: 'cursor-agent',
+      args: ['--prompt', prompt]
     });
   }
 

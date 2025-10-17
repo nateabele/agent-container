@@ -4,9 +4,10 @@
  * Claude Code Provider Implementation
  */
 
-import { spawn, exec } from 'child_process';
+import { exec } from 'child_process';
 import { BaseAIProvider } from './base-provider.js';
 import { ProviderConfig, ExecutionOptions, AuthenticationCredentials, ConfigurationOptions } from '../types.js';
+import { spawnProcess } from './process-utils.js';
 
 interface TestModeOptions extends ExecutionOptions {
   readonly testMode?: boolean;
@@ -23,9 +24,7 @@ export class ClaudeProvider extends BaseAIProvider {
    */
   public override async isAvailable(): Promise<boolean> {
     return new Promise((resolve) => {
-      exec('which claude', (error) => {
-        resolve(!error);
-      });
+      exec('which claude', (error) => resolve(!error));
     });
   }
 
@@ -42,32 +41,17 @@ export class ClaudeProvider extends BaseAIProvider {
       }
 
       // Try to authenticate using claude setup-token
-      return new Promise((resolve) => {
-        const claude = spawn('claude', ['setup-token'], {
-          stdio: ['pipe', 'pipe', 'pipe']
+      try {
+        await spawnProcess({
+          command: 'claude',
+          args: ['setup-token']
         });
-
-        let output = '';
-        let errorOutput = '';
-
-        claude.stdout?.on('data', (data) => {
-          output += data.toString();
-        });
-
-        claude.stderr?.on('data', (data) => {
-          errorOutput += data.toString();
-        });
-
-        claude.on('close', (code) => {
-          if (code === 0) {
-            this.isAuthenticated = true;
-            resolve(true);
-          } else {
-            console.error('Claude authentication failed:', errorOutput);
-            resolve(false);
-          }
-        });
-      });
+        this.isAuthenticated = true;
+        return true;
+      } catch (error) {
+        console.error('Claude authentication failed:', (error as Error).message);
+        return false;
+      }
     } catch (error) {
       console.error('Claude login error:', (error as Error).message);
       return false;
@@ -107,70 +91,39 @@ export class ClaudeProvider extends BaseAIProvider {
   public async execute(input: string, options: TestModeOptions = {}): Promise<string> {
     if (options.testMode) {
       // For authentication testing, use a minimal request
-      return new Promise((resolve, reject) => {
-        const claude = spawn('claude', [
-          '--dangerously-skip-permissions',
-          '-p'
-        ], {
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
-
-        let output = '';
-        let errorOutput = '';
-
-        claude.stdout?.on('data', (data) => {
-          output += data.toString();
-        });
-
-        claude.stderr?.on('data', (data) => {
-          errorOutput += data.toString();
-        });
-
-        claude.on('close', (code) => {
-          if (code === 0) {
-            resolve(output);
-          } else {
-            reject(new Error(`Claude failed with code ${code}: ${errorOutput}`));
-          }
-        });
-
-        claude.stdin?.write("Hello");
-        claude.stdin?.end();
+      return spawnProcess({
+        command: 'claude',
+        args: ['--dangerously-skip-permissions', '-p'],
+        stdin: 'Hello'
       });
     }
 
-    return new Promise((resolve, reject) => {
-      const claude = spawn('claude', [
-        '--dangerously-skip-permissions',
-        '--verbose',
-        '-p'
-      ], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
+    // Create a clean environment without OAuth tokens to force native auth
+    const env: NodeJS.ProcessEnv = { ...process.env };
 
-      let output = '';
-      let errorOutput = '';
+    // Remove any OAuth tokens that might interfere with native Claude auth
+    delete env['CLAUDE_CODE_OAUTH_TOKEN'];
+    delete env['ANTHROPIC_API_KEY'];
 
-      claude.stdout?.on('data', (data) => {
-        output += data.toString();
-      });
+    // Ensure HOME is set for Claude to find its config
+    if (!env['HOME']) {
+      env['HOME'] = '/home/dev';
+    }
 
-      claude.stderr?.on('data', (data) => {
-        errorOutput += data.toString();
-      });
+    // Debug: log environment info
+    console.error(`DEBUG: HOME=${env['HOME']}`);
+    console.error(`DEBUG: Using native Claude auth (OAuth tokens stripped)`);
 
-      claude.on('close', (code) => {
-        if (code === 0) {
-          resolve(output);
-        } else {
-          // Combine stdout and stderr for better error reporting
-          const fullError = `${errorOutput}${output}`.trim();
-          reject(new Error(`Claude failed with code ${code}: ${fullError}`));
-        }
-      });
-
-      claude.stdin?.write(input);
-      claude.stdin?.end();
+    return spawnProcess({
+      command: 'claude',
+      args: ['--dangerously-skip-permissions', '--verbose', '-p'],
+      options: {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env
+      },
+      stdin: input,
+      onStdout: (text) => process.stdout.write(text),
+      onStderr: (text) => process.stderr.write(text)
     });
   }
 

@@ -8,6 +8,7 @@ services:
     volumes:
       - .:/workspace/${PROJECT_NAME}:rw
       - ${PROJECT_LOG_DIR}:/workspace/logs:rw
+      - ./session:/home/dev:rw
       # Add additional project volumes here as needed
       # - ../shared-lib:/workspace/shared-lib:rw
     
