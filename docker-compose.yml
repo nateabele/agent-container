@@ -6,20 +6,20 @@ services:
     extends:
       file: ./docker-compose.base.yml
       service: agent-base
-    
+
     # Project-specific volumes
     volumes:
       - .:/workspace/agent-container:rw
       # Example: mount additional project directories
       # - ../shared-lib:/workspace/shared-lib:rw
-    
+
     # Project-specific ports (define only what you need)
     ports:
-      - "3000:3000"   # Vite/Next dev server
-      - "3001:3001"   # Additional dev server
-      - "5173:5173"   # Vite default
-      - "9222:9222"   # Chrome DevTools Protocol
-    
+      - "3000:3000" # Vite/Next dev server
+      - "3001:3001" # Additional dev server
+      - "5173:5173" # Vite default
+      - "9222:9222" # Chrome DevTools Protocol
+
     # Project-specific environment variables
     environment:
       - PROJECT_NAME=agent-container

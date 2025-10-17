@@ -35,7 +35,8 @@ Use the attached prompt template to generate a prompt for the following project 
 ---
 
 ### 💡 Notes
-- Replace “browser runtime errors” with “runtime execution errors” for CLI or desktop apps.  
-- Replace “Playwright E2E tests” with “integration tests” if there’s no UI.  
-- Maintain **FIX_PLAN.md** as the single source of truth for work in progress.  
+- Replace "browser runtime errors" with "runtime execution errors" for CLI or desktop apps.
+- Replace "Playwright E2E tests" with "integration tests" if there's no UI.
+- Maintain **FIX_PLAN.md** as the single source of truth for work in progress.
 - Keep **AGENT.md** focused on setup, learning, and build/test optimization — *never* for status updates.
+- **ALL documentation files** (SPEC.md, ARCHITECTURE_NOTES.md, FIX_PLAN.md, etc.) should be created in the `docs/` folder of the project root — never in the root directory itself.

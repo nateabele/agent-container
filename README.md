@@ -2,6 +2,14 @@
 
 A Docker container environment for AI agents with headless browser automation capabilities, fish shell, and development tools.
 
+## Starting a New Project
+
+1. Run `./bin/init-project.sh` in the directory of the `.../new-project`
+2. Paste `METAPROMPT.md` into an LLM, replacing `[PROJECT DESCRIPTION]` with the actual description of the project.
+3. Save the output as `new-project/PROMPT.md`
+4. Set additional environment variables and volume mounts in `.env` and `docker-compose.yml`
+4. Run `up` to build the project container, and `docker-agent` to ssh into it
+
 ## Features
 
 ### 🐚 Shell Environment
@@ -315,6 +323,23 @@ dist/                           # Compiled JavaScript output
 ### Multi-Project Documentation
 - [docs/MULTI_PROJECT.md](docs/MULTI_PROJECT.md) - Comprehensive multi-project setup guide
 - [template/README.md](template/README.md) - Quick start guide for new projects
+
+## Documentation Organization
+
+**All project documentation must be created in the `docs/` folder:**
+
+```
+docs/
+├── SPEC.md                    # Platform specifications
+├── ARCHITECTURE_NOTES.md      # Architecture documentation
+├── FIX_PLAN.md               # Current issues and priorities
+├── BROWSER.md                # Browser automation guide
+├── MULTI_PROJECT.md          # Multi-project setup
+├── EXIT_CONDITIONS.md        # AI loop exit conditions
+└── MIGRATION.md              # Migration guides
+```
+
+**Important:** Never create documentation files (*.md) in the root directory. All specs, architecture notes, fix plans, and other documentation should go into the `docs/` folder to keep the project organized.
 
 ## Development
 

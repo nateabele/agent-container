@@ -47,6 +47,16 @@ Edit `.env` to customize:
 - **Development tools** (Node.js, Git, vim, etc.)
 - **Automatic updates** from central configuration
 
+## Documentation Organization
+
+**Create a `docs/` folder for all project documentation:**
+
+```bash
+mkdir -p docs
+```
+
+All documentation files (SPEC.md, ARCHITECTURE_NOTES.md, FIX_PLAN.md, etc.) should be placed in the `docs/` folder, not in the root directory. This keeps your project organized and follows best practices.
+
 ## Troubleshooting
 
 - **Permission issues**: Check `AGENT_UID` and `AGENT_GID` in `.env`

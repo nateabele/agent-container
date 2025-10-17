@@ -108,6 +108,15 @@ else
     print_status "Session directory already exists: $SESSION_DIR"
 fi
 
+# Create docs directory for project documentation
+DOCS_DIR="$PROJECT_PATH/docs"
+if [ ! -d "$DOCS_DIR" ]; then
+    mkdir -p "$DOCS_DIR"
+    print_success "Created docs directory: $DOCS_DIR"
+else
+    print_status "Docs directory already exists: $DOCS_DIR"
+fi
+
 # Detect user ID and group ID
 USER_ID=$(id -u)
 GROUP_ID=$(id -g)

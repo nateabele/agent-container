@@ -6,6 +6,8 @@
 
 0d. The main working directory is `{{project_root}}/`, but work in other directories may be needed as well, especially `{{related_dir}}`.
 
+**IMPORTANT: ALL documentation files (SPEC.md, ARCHITECTURE_NOTES.md, FIX_PLAN.md, etc.) must be created in the `{{project_root}}/docs/` folder. Never create documentation files in the root directory.**
+
 1. Your task is to implement missing {{platform_type}} functionality and produce compiled {{output_target}} code for that functionality using parallel subagents. Follow the docs/FIX_PLAN.md and choose the most important 10 things. Before making changes search codebase (don't assume not implemented) using subagents. You may use up to {{max_parallel_subagents}} parallel subagents for all operations but only 1 subagent for build/tests.
 
 **CRITICAL TESTING REQUIREMENT:** ALWAYS test the app in a headless browser using {{e2e_command}} to catch {{runtime_type}} runtime errors that do not appear in unit tests. Runtime errors in the {{runtime_type}} are the PRIMARY concern. Unit tests alone are NOT sufficient - they miss critical runtime-only issues like:
