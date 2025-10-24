@@ -59,6 +59,21 @@ export class ClaudeProvider extends BaseAIProvider {
   }
 
   /**
+   * Resolve the path to the claude executable
+   */
+  private async resolveClaudePath(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      exec('which claude', (error, stdout) => {
+        if (error) {
+          reject(new Error(`Claude executable not found: ${error.message}`));
+        } else {
+          resolve(stdout.trim());
+        }
+      });
+    });
+  }
+
+  /**
    * Validate Claude authentication
    */
   public async validateAuthentication(): Promise<boolean> {
@@ -89,13 +104,16 @@ export class ClaudeProvider extends BaseAIProvider {
    * Execute a request with Claude
    */
   public async execute(input: string, options: TestModeOptions = {}): Promise<string> {
+    console.error('Executing with Claude with 8GB memory limit...');
+
+    // Resolve the claude path first
+    const claudePath = await this.resolveClaudePath();
+    const command = 'node';
+    const args = ['--max-old-space-size=8192', claudePath, '--dangerously-skip-permissions', '--verbose', '-p'];
+
     if (options.testMode) {
       // For authentication testing, use a minimal request
-      return spawnProcess({
-        command: 'claude',
-        args: ['--dangerously-skip-permissions', '-p'],
-        stdin: 'Hello'
-      });
+      return spawnProcess({ command, args, stdin: 'Hello' });
     }
 
     // Create a clean environment without OAuth tokens to force native auth
@@ -105,25 +123,18 @@ export class ClaudeProvider extends BaseAIProvider {
     delete env['CLAUDE_CODE_OAUTH_TOKEN'];
     delete env['ANTHROPIC_API_KEY'];
 
-    // Ensure HOME is set for Claude to find its config
     if (!env['HOME']) {
       env['HOME'] = '/home/dev';
     }
 
-    // Debug: log environment info
-    console.error(`DEBUG: HOME=${env['HOME']}`);
-    console.error(`DEBUG: Using native Claude auth (OAuth tokens stripped)`);
+    const onStdout = process.stdout.write.bind(process.stdout);
+    const onStderr = process.stderr.write.bind(process.stderr);
 
     return spawnProcess({
-      command: 'claude',
-      args: ['--dangerously-skip-permissions', '--verbose', '-p'],
-      options: {
+      command, args, stdin: input, onStdout, onStderr, options: {
         stdio: ['pipe', 'pipe', 'pipe'],
         env
-      },
-      stdin: input,
-      onStdout: (text) => process.stdout.write(text),
-      onStderr: (text) => process.stderr.write(text)
+      }
     });
   }
 
